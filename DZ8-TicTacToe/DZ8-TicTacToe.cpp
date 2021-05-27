@@ -86,19 +86,19 @@ void startGame(field& f)
 {
     do
     {
-        cout << "Enter field size (3): ";
+        cout << "Enter field size (3-5): ";
         cin >> f.size;
         checkInput();
 
-    } while (f.size < 3 || f.size > 3 /*5*/);
+    } while (f.size < 3 || f.size > 5);
 
     do
     {
-        cout << "Enter wining line size (3): ";
+        cout << "Enter wining line size (3-5): ";
         cin >> f.winline;
         checkInput();
 
-    } while (f.winline < 3 || f.winline > f.size );
+    } while (f.winline < 3 || f.winline > f.size);
 
     f.ppField = new cell * [f.size];
     for (size_t y = 0; y < f.size; y++)
@@ -180,77 +180,59 @@ coord getPlayerCoord(field& f)
 
 coord getAICoord(field& f)
 {
-    coord c{ 0 };
-
-    if (f.ppField[1][1] == EMPTY)
-        return { 1,1 };
-
-    coord buf[4];
+    coord buf[25];
     size_t num = 0;
-    if (f.ppField[0][0] == EMPTY)
+    for (size_t y = 0; y < f.size; y++)
     {
-        buf[num] = { 0,0 };
-        num++;
-    }
-    if (f.ppField[2][2] == EMPTY)
-    {
-        buf[num] = { 2,2 };
-        num++;
-    }
-    if (f.ppField[2][0] == EMPTY)
-    {
-        buf[num] = { 2,0 };
-        num++;
-    }
-    if (f.ppField[0][2] == EMPTY)
-    {
-        buf[num] = { 0,2 };
-        num++;
+        for (size_t x = 0; x < f.size; x++)
+        {
+            if (f.ppField[y][x] == EMPTY)
+            {
+                buf[num] = { x, y };
+                num++;
+            }
+        }
     }
     if (num != 0)
     {
-        const size_t i = getRandom(0, 1000) % num;
+        for (size_t i = 0; i < num; i++)
+        {
+            f.ppField[buf[i].y][buf[i].x] = f.ai;
+            if (checkWiner(f) == WON_AI)
+            {
+                f.ppField[buf[i].y][buf[i].x] = EMPTY;
+                return buf[i];
+            }
+            f.ppField[buf[i].y][buf[i].x] = EMPTY;
+        }
+        
+        for (size_t i = 0; i < num; i++)
+        {
+            f.ppField[buf[i].y][buf[i].x] = f.player;
+            if (checkWiner(f) == WON_PLAYER)
+            {
+                f.ppField[buf[i].y][buf[i].x] = EMPTY;
+                return buf[i];
+            }
+            f.ppField[buf[i].y][buf[i].x] = EMPTY;
+        }
+        size_t i = getRandom(0, 1000) % num;
         return buf[i];
     }
-   
-    num = 0;
-
-    if (f.ppField[0][1] == EMPTY)
-    {
-        buf[num] = { 0,1 };
-        num++;
-    }
-    if (f.ppField[2][1] == EMPTY)
-    {
-        buf[num] = { 2,1 };
-        num++;
-    }
-    if (f.ppField[1][0] == EMPTY)
-    {
-        buf[num] = { 1,0 };
-        num++;
-    }
-    if (f.ppField[1][2] == EMPTY)
-    {
-        buf[num] = { 1,2 };
-        num++;
-    }
-    if (num != 0)
-    {
-        const size_t i = getRandom(0, 1000) % num;
-        return buf[i];
-    }
-    
-    return c;
 }
 
 state checkWiner(field& f)
 {
+    size_t playerScore = 0;
+    size_t aiScore = 0;
+    cell prev = EMPTY;
+
+    //Проверяем столбцы
     for (size_t y = 0; y < f.size; y++)
     {
-        size_t playerScore = 0;
-        size_t aiScore = 0;
-        cell prev = EMPTY;
+        playerScore = 0;
+        aiScore = 0;
+        prev = EMPTY;
         for (size_t x = 0; x < f.size; x++)
         {
             if (f.ppField[y][x] == f.player && (prev == EMPTY || prev == f.player))
@@ -288,11 +270,12 @@ state checkWiner(field& f)
         }
     }
 
+    //Проверяем строки
     for (size_t x = 0; x < f.size; x++)
     {
-        size_t playerScore = 0;
-        size_t aiScore = 0;
-        cell prev = EMPTY;
+        playerScore = 0;
+        aiScore = 0;
+        prev = EMPTY;
         for (size_t y = 0; y < f.size; y++)
         {
             if (f.ppField[y][x] == f.player && (prev == EMPTY || prev == f.player))
@@ -329,33 +312,235 @@ state checkWiner(field& f)
             }
         }
     }
+
+    //Проверяем диагональ 1
+
+    playerScore = 0;
+    aiScore = 0;
+    prev = EMPTY;
+    for (size_t y = 0; y < f.size; y++)
     {
-        size_t playerScore = 0;
-        size_t aiScore = 0;
-        cell prev = EMPTY;
-        for (size_t y = 0; y < f.size; y++)
+        if (f.ppField[y][y] == f.player && (prev == EMPTY || prev == f.player))
         {
-            if (f.ppField[y][y] == f.player && (prev == EMPTY || prev == f.player))
+            prev = f.player;
+            playerScore++;
+            if (playerScore >= f.winline)
+                return WON_PLAYER;
+        }
+        else if (f.ppField[y][y] == f.ai && (prev == EMPTY || prev == f.ai))
+        {
+            prev = f.ai;
+            aiScore++;
+            if (aiScore >= f.winline)
+                return WON_AI;
+        }
+        else if (f.ppField[y][y] == f.player && prev == f.ai)
+        {
+            prev = f.player;
+            playerScore++;
+            aiScore = 0;
+        }
+        else if (f.ppField[y][y] == f.ai && prev == f.player)
+        {
+            prev = f.ai;
+            playerScore = 0;
+            aiScore++;
+        }
+        else
+        {
+            prev = EMPTY;
+            aiScore = 0;
+            playerScore = 0;
+        }
+    }
+
+    //Проверяем диагональ 2
+    
+    playerScore = 0;
+    aiScore = 0;
+    prev = EMPTY;
+    for (size_t y = 0; y < f.size; y++)
+    {
+        if (f.ppField[y][f.size - y - 1] == f.player && (prev == EMPTY || prev == f.player))
+        {
+            prev = f.player;
+            playerScore++;
+            if (playerScore >= f.winline)
+                return WON_PLAYER;
+        }
+        else if (f.ppField[y][f.size - y - 1] == f.ai && (prev == EMPTY || prev == f.ai))
+        {
+            prev = f.ai;
+            aiScore++;
+                if (aiScore >= f.winline)
+                    return WON_AI;
+        }
+        else if (f.ppField[y][f.size - y - 1] == f.player && prev == f.ai)
+        {
+            prev = f.player;
+            playerScore++;
+            aiScore = 0;
+        }
+        else if (f.ppField[y][f.size - y - 1] == f.ai && prev == f.player)
+        {
+                prev = f.ai;
+                playerScore = 0;
+                aiScore++;
+        }
+        else
+        {
+            prev = EMPTY;
+            aiScore = 0;
+            playerScore = 0;
+        }
+    }
+    
+    //Проверяем доп. диагонали
+    if (f.size - f.winline >= 1)
+    {
+        playerScore = 0;
+        aiScore = 0;
+        prev = EMPTY;
+        for (size_t y = 1; y < f.size; y++)
+        {
+            if (f.ppField[y-1][y] == f.player && (prev == EMPTY || prev == f.player))
             {
                 prev = f.player;
                 playerScore++;
                 if (playerScore >= f.winline)
                     return WON_PLAYER;
             }
-            else if (f.ppField[y][y] == f.ai && (prev == EMPTY || prev == f.ai))
+            else if (f.ppField[y-1][y] == f.ai && (prev == EMPTY || prev == f.ai))
             {
                 prev = f.ai;
                 aiScore++;
                 if (aiScore >= f.winline)
                     return WON_AI;
             }
-            else if (f.ppField[y][y] == f.player && prev == f.ai)
+            else if (f.ppField[y-1][y] == f.player && prev == f.ai)
             {
                 prev = f.player;
                 playerScore++;
                 aiScore = 0;
             }
-            else if (f.ppField[y][y] == f.ai && prev == f.player)
+            else if (f.ppField[y-1][y] == f.ai && prev == f.player)
+            {
+                prev = f.ai;
+                playerScore = 0;
+                aiScore++;
+            }
+            else
+            {
+                prev = EMPTY;
+                aiScore = 0;
+                playerScore = 0;
+            }
+        }
+
+        prev = EMPTY;
+        aiScore = 0;
+        playerScore = 0;
+        for (size_t y = 1; y < f.size; y++)
+        {
+            if (f.ppField[y][y - 1] == f.player && (prev == EMPTY || prev == f.player))
+            {
+                prev = f.player;
+                playerScore++;
+                if (playerScore >= f.winline)
+                    return WON_PLAYER;
+            }
+            else if (f.ppField[y][y - 1] == f.ai && (prev == EMPTY || prev == f.ai))
+            {
+                prev = f.ai;
+                aiScore++;
+                if (aiScore >= f.winline)
+                    return WON_AI;
+            }
+            else if (f.ppField[y][y - 1] == f.player && prev == f.ai)
+            {
+                prev = f.player;
+                playerScore++;
+                aiScore = 0;
+            }
+            else if (f.ppField[y][y - 1] == f.ai && prev == f.player)
+            {
+                prev = f.ai;
+                playerScore = 0;
+                aiScore++;
+            }
+            else
+            {
+                prev = EMPTY;
+                aiScore = 0;
+                playerScore = 0;
+            }
+        }
+        
+        playerScore = 0;
+        aiScore = 0;
+        prev = EMPTY;
+        for (size_t y = 0; y < f.size - 1; y++)
+        {
+            if (f.ppField[y][f.size - y - 2] == f.player && (prev == EMPTY || prev == f.player))
+            {
+                prev = f.player;
+                playerScore++;
+                if (playerScore >= f.winline)
+                    return WON_PLAYER;
+            }
+            else if (f.ppField[y][f.size - y - 2] == f.ai && (prev == EMPTY || prev == f.ai))
+            {
+                prev = f.ai;
+                aiScore++;
+                if (aiScore >= f.winline)
+                    return WON_AI;
+            }
+            else if (f.ppField[y][f.size - y - 2] == f.player && prev == f.ai)
+            {
+                prev = f.player;
+                playerScore++;
+                aiScore = 0;
+            }
+            else if (f.ppField[y][f.size - y - 2] == f.ai && prev == f.player)
+            {
+                prev = f.ai;
+                playerScore = 0;
+                aiScore++;
+            }
+            else
+            {
+                prev = EMPTY;
+                aiScore = 0;
+                playerScore = 0;
+            }
+        }
+
+        playerScore = 0;
+        aiScore = 0;
+        prev = EMPTY;
+        for (size_t y = 0; y < f.size - 1; y++)
+        {
+            if (f.ppField[y + 1][f.size - y - 1] == f.player && (prev == EMPTY || prev == f.player))
+            {
+                prev = f.player;
+                playerScore++;
+                if (playerScore >= f.winline)
+                    return WON_PLAYER;
+            }
+            else if (f.ppField[y + 1][f.size - y - 1] == f.ai && (prev == EMPTY || prev == f.ai))
+            {
+                prev = f.ai;
+                aiScore++;
+                if (aiScore >= f.winline)
+                    return WON_AI;
+            }
+            else if (f.ppField[y + 1][f.size - y - 1] == f.player && prev == f.ai)
+            {
+                prev = f.player;
+                playerScore++;
+                aiScore = 0;
+            }
+            else if (f.ppField[y + 1][f.size - y - 1] == f.ai && prev == f.player)
             {
                 prev = f.ai;
                 playerScore = 0;
@@ -369,33 +554,152 @@ state checkWiner(field& f)
             }
         }
     }
+
+    if (f.size - f.winline >= 2)
     {
-        size_t playerScore = 0;
-        size_t aiScore = 0;
-        cell prev = EMPTY;
-        for (size_t y = 0; y < f.size; y++)
+        playerScore = 0;
+        aiScore = 0;
+        prev = EMPTY;
+        for (size_t y = 2; y < f.size; y++)
         {
-            if (f.ppField[y][f.size - y - 1] == f.player && (prev == EMPTY || prev == f.player))
+            if (f.ppField[y - 2][y] == f.player && (prev == EMPTY || prev == f.player))
             {
                 prev = f.player;
                 playerScore++;
                 if (playerScore >= f.winline)
                     return WON_PLAYER;
             }
-            else if (f.ppField[y][f.size - y - 1] == f.ai && (prev == EMPTY || prev == f.ai))
+            else if (f.ppField[y - 2][y] == f.ai && (prev == EMPTY || prev == f.ai))
             {
                 prev = f.ai;
                 aiScore++;
                 if (aiScore >= f.winline)
                     return WON_AI;
             }
-            else if (f.ppField[y][f.size - y - 1] == f.player && prev == f.ai)
+            else if (f.ppField[y - 2][y] == f.player && prev == f.ai)
             {
                 prev = f.player;
                 playerScore++;
                 aiScore = 0;
             }
-            else if (f.ppField[y][f.size - y - 1] == f.ai && prev == f.player)
+            else if (f.ppField[y - 2][y] == f.ai && prev == f.player)
+            {
+                prev = f.ai;
+                playerScore = 0;
+                aiScore++;
+            }
+            else
+            {
+                prev = EMPTY;
+                aiScore = 0;
+                playerScore = 0;
+            }
+        }
+
+        prev = EMPTY;
+        aiScore = 0;
+        playerScore = 0;
+        for (size_t y = 2; y < f.size; y++)
+        {
+            if (f.ppField[y][y - 2] == f.player && (prev == EMPTY || prev == f.player))
+            {
+                prev = f.player;
+                playerScore++;
+                if (playerScore >= f.winline)
+                    return WON_PLAYER;
+            }
+            else if (f.ppField[y][y - 2] == f.ai && (prev == EMPTY || prev == f.ai))
+            {
+                prev = f.ai;
+                aiScore++;
+                if (aiScore >= f.winline)
+                    return WON_AI;
+            }
+            else if (f.ppField[y][y - 2] == f.player && prev == f.ai)
+            {
+                prev = f.player;
+                playerScore++;
+                aiScore = 0;
+            }
+            else if (f.ppField[y][y - 2] == f.ai && prev == f.player)
+            {
+                prev = f.ai;
+                playerScore = 0;
+                aiScore++;
+            }
+            else
+            {
+                prev = EMPTY;
+                aiScore = 0;
+                playerScore = 0;
+            }
+        }
+
+        playerScore = 0;
+        aiScore = 0;
+        prev = EMPTY;
+        for (size_t y = 0; y < f.size - 2; y++)
+        {
+            if (f.ppField[y][f.size - y - 3] == f.player && (prev == EMPTY || prev == f.player))
+            {
+                prev = f.player;
+                playerScore++;
+                if (playerScore >= f.winline)
+                    return WON_PLAYER;
+            }
+            else if (f.ppField[y][f.size - y - 3] == f.ai && (prev == EMPTY || prev == f.ai))
+            {
+                prev = f.ai;
+                aiScore++;
+                if (aiScore >= f.winline)
+                    return WON_AI;
+            }
+            else if (f.ppField[y][f.size - y - 3] == f.player && prev == f.ai)
+            {
+                prev = f.player;
+                playerScore++;
+                aiScore = 0;
+            }
+            else if (f.ppField[y][f.size - y - 3] == f.ai && prev == f.player)
+            {
+                prev = f.ai;
+                playerScore = 0;
+                aiScore++;
+            }
+            else
+            {
+                prev = EMPTY;
+                aiScore = 0;
+                playerScore = 0;
+            }
+        }
+
+        playerScore = 0;
+        aiScore = 0;
+        prev = EMPTY;
+        for (size_t y = 0; y < f.size - 2; y++)
+        {
+            if (f.ppField[y + 2][f.size - y - 1] == f.player && (prev == EMPTY || prev == f.player))
+            {
+                prev = f.player;
+                playerScore++;
+                if (playerScore >= f.winline)
+                    return WON_PLAYER;
+            }
+            else if (f.ppField[y + 2][f.size - y - 1] == f.ai && (prev == EMPTY || prev == f.ai))
+            {
+                prev = f.ai;
+                aiScore++;
+                if (aiScore >= f.winline)
+                    return WON_AI;
+            }
+            else if (f.ppField[y + 2][f.size - y - 1] == f.player && prev == f.ai)
+            {
+                prev = f.player;
+                playerScore++;
+                aiScore = 0;
+            }
+            else if (f.ppField[y + 2][f.size - y - 1] == f.ai && prev == f.player)
             {
                 prev = f.ai;
                 playerScore = 0;
